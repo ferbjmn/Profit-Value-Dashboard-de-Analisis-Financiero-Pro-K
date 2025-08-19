@@ -144,9 +144,7 @@ def obtener_datos_financieros(tk, Tc_def):
         nopat = ebit * (1 - tax) if ebit is not None else None
         invested = (equity or 0) + ((debt or 0) - (cash or 0))
         roic = nopat / invested if (nopat is not None and invested) else None
-        
-        # Calcular creación de valor (ROIC - WACC)
-        creacion_valor = (roic - wacc) if (roic is not None and wacc is not None) else None
+        eva = (roic - wacc) * invested if all(v is not None for v in (roic, wacc, invested)) else None
 
         price = info.get("currentPrice")
         fcf = safe_first(seek_row(cf, ["Free Cash Flow"]))
@@ -194,7 +192,7 @@ def obtener_datos_financieros(tk, Tc_def):
             "Profit Margin": profit_margin,
             "WACC": wacc,
             "ROIC": roic,
-            "Creacion de Valor (Wacc vs Roic)": creacion_valor,
+            "EVA": eva,
             "Revenue Growth": revenue_growth,
             "EPS Growth": eps_growth,
             "FCF Growth": fcf_growth,
@@ -272,14 +270,12 @@ def main():
                    "Profit Margin", "WACC", "ROIC", "Revenue Growth", "EPS Growth", "FCF Growth"]:
             df_disp[col] = df_disp[col].apply(lambda x: format_number(x, 2, is_percent=True))
             
-        # Creación de valor con 2 decimales y formato de porcentaje
-        df_disp["Creacion de Valor (Wacc vs Roic)"] = df_disp["Creacion de Valor (Wacc vs Roic)"].apply(
-            lambda x: format_number(x, 2, is_percent=True) if pd.notnull(x) else "N/D"
-        )
-            
         # Precio y MarketCap con 2 decimales
         df_disp["Precio"] = df_disp["Precio"].apply(lambda x: f"${float(x):,.2f}" if pd.notnull(x) else "N/D")
         df_disp["MarketCap"] = df_disp["MarketCap"].apply(lambda x: f"${float(x)/1e9:,.2f}B" if pd.notnull(x) else "N/D")
+        
+        # EVA con 0 decimales
+        df_disp["EVA"] = df_disp["EVA"].apply(lambda x: f"${float(x):,.0f}" if pd.notnull(x) else "N/D")
 
         # Asegurar que las columnas de texto no sean None
         for c in ["Nombre", "País", "Industria"]:
@@ -297,7 +293,7 @@ def main():
                 "Precio", "P/E", "P/B", "P/FCF",
                 "Dividend Yield %", "Payout Ratio", "ROA", "ROE",
                 "Current Ratio", "Debt/Eq", "Oper Margin", "Profit Margin",
-                "WACC", "ROIC", "Creacion de Valor (Wacc vs Roic)", "MarketCap"
+                "WACC", "ROIC", "EVA", "MarketCap"
             ]],
             use_container_width=True,
             height=500
@@ -473,7 +469,7 @@ def main():
             st.metric("Market Cap", det_disp["MarketCap"])
             st.metric("ROIC", det_disp["ROIC"])
             st.metric("WACC", det_disp["WACC"])
-            st.metric("Creación de Valor", det_disp["Creacion de Valor (Wacc vs Roic)"])
+            st.metric("EVA", det_disp["EVA"])
             
         with cC:
             st.metric("ROE", det_disp["ROE"])
